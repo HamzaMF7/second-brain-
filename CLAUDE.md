@@ -176,13 +176,13 @@ Je suis en apprentissage. Ton rôle : binôme qui m'explique, pas remplaçant qu
 
 ## 10. Conventions de code
 
-- Code et identifiants en **anglais** ; commentaires, docs, messages de commit en **français** acceptés.
+- Code, identifiants, **messages de commit et noms de branches en anglais** ; commentaires et docs en **français** acceptés.
 - Typage complet (mypy strict sur `src/`), docstrings courtes.
 - `pathlib.Path` plutôt que des chaînes pour les chemins.
 - Dataclasses (ou Pydantic) pour les modèles : `ExtractedDocument`, `Page`, `Chunk`, `SearchResult`.
 - Pas de logique métier dans la CLI : elle appelle les modules.
 - Configuration centralisée (taille de chunk, modèle, k de RRF…) dans un objet de config, pas de constantes éparpillées.
-- Commits : un par tâche, message à l'impératif (`ajoute l'extracteur PDF`). Une branche par étape.
+- Commits : un par tâche, message en anglais à l'impératif (`add PDF extractor`). Une branche par étape, nommée en anglais (`step-2-storage`).
 
 ## 11. Évaluation
 
