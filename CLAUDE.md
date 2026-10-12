@@ -126,7 +126,7 @@ Ajouter un format, un modèle ou une méthode de recherche = **une nouvelle impl
 | Vecteurs | sqlite-vec | Dans la même base ; force brute suffisante à notre échelle |
 | Embeddings | Modèle **multilingue** via **ONNX** (fastembed) | Documents FR/EN ; évite PyTorch (lourd à installer et distribuer) |
 | Fusion | RRF, k = 60 par défaut | Ne dépend que des rangs ; robuste |
-| Extraction PDF | à décider (étape 1) — voir ADR | — |
+| Extraction PDF | PyMuPDF (ADR 0007) | Qualité et vitesse mesurées ; AGPL à réévaluer avant toute distribution |
 
 Les choix marqués « à décider » sont tranchés à l'étape concernée par une mesure et un ADR. **Ne pas les trancher à ma place.**
 
@@ -206,11 +206,11 @@ uv run python eval/run_eval.py           # évaluer
 
 > À mettre à jour à chaque fin d'étape.
 
-- **Étape en cours** : 1 — extraction (étape 0 terminée le 2026-10-11).
-- **Décisions prises** : SQLite unique, FTS5, sqlite-vec, embeddings ONNX multilingues, RRF (voir `docs/adr/`). Étape 0 : uv + `uv_build`, src layout avec paquets à plat (section 5), CLI Typer, mypy strict sur `src/`, CI GitHub Actions (ruff, ruff format, mypy, pytest).
-- **Décisions ouvertes** : bibliothèque PDF, modèle d'embeddings précis, taille de chunk, SQL brut ou ORM.
-- **Derniers résultats d'évaluation** : aucun pour l'instant.
-- **Problèmes connus** : CI jamais exécutée (pas encore de remote GitHub) · commandes `/adr` et `/relecture` référencées mais absentes de `.claude/commands/` · `docs/journal.md` absent.
+- **Étape en cours** : 2 — stockage et indexation (étape 0 terminée le 2026-10-11, étape 1 le 2026-10-12 sous réserve du passage de `scripts/extract_all.py` sur le corpus réel).
+- **Décisions prises** : SQLite unique, FTS5, sqlite-vec, embeddings ONNX multilingues, RRF (voir `docs/adr/`). Étape 0 : uv + `uv_build`, src layout avec paquets à plat (section 5), CLI Typer, mypy strict sur `src/`, CI GitHub Actions (ruff, ruff format, mypy, pytest). Étape 1 : PyMuPDF (ADR 0007, AGPL à réévaluer avant distribution) · modèles en dataclasses `frozen` + `slots` · pattern Strategy + `default_registry()` comme seul point qui liste les formats · décodage UTF-8 → cp1252 → Latin-1 puis NFC · `Section.offset` (position dans `ExtractedDocument.text`) · PDF scanné = moins de 50 caractères non blancs par page en moyenne (`ExtractionConfig`) · ligatures développées par MuPDF · messages d'erreur sans contenu (`from None` sur les erreurs MuPDF).
+- **Décisions ouvertes** : SQL brut ou ORM (étape 2), taille de chunk, modèle d'embeddings précis · normalisations du texte PDF à évaluer avant adoption : recollage des césures, retrait des en-têtes/pieds de page répétés, ordre des colonnes · emplacement commun des exclusions de dossiers (dupliquées dans `corpus_stats.py` et `extract_all.py`).
+- **Derniers résultats d'évaluation** : aucun pour l'instant (pas encore de jeu d'évaluation). Comparatif PDF sur corpus inventé : voir ADR 0007.
+- **Problèmes connus** : remote GitHub configuré mais état de la CI non vérifié · commandes `/adr` et `/relecture` référencées mais absentes de `.claude/commands/` · `docs/journal.md` absent · `pypdf` (dev) et `scripts/compare_pdf_libs.py` à retirer selon l'ADR 0007 · travail de l'étape 1 non commité sur la branche `etape-1-extraction`.
 
 ## 14. Références
 
