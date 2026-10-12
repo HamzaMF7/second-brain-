@@ -32,3 +32,6 @@ htmlcov/
 
 # Systèmes
 .DS_Store
+
+# PDF de test générés par scripts/make_pdf_samples.py
+samples/

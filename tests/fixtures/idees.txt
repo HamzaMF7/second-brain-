@@ -1,0 +1,4 @@
+Idées en vrac
+
+Relire le chapitre sur l'indexation incrémentale.
+Tester la recherche avec des accents : café, élève, Noël.
