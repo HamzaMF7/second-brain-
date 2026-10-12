@@ -1,3 +1,4 @@
+import re
 from importlib.metadata import version
 from pathlib import Path
 
@@ -7,6 +8,7 @@ from typer.testing import CliRunner
 from second_brain.cli import app
 
 runner = CliRunner()
+ANSI_ESCAPE = re.compile(r"\x1b\[[0-9;]*m")  # codes de style du terminal : \x1b[1m, \x1b[0m…
 
 
 def test_version_affiche_la_version_du_paquet() -> None:
@@ -20,9 +22,11 @@ def test_help_liste_les_commandes() -> None:
     result = runner.invoke(app, ["--help"])
 
     assert result.exit_code == 0
+    # En CI (GITHUB_ACTIONS), Typer force les couleurs : on retire les codes ANSI.
+    plain = ANSI_ESCAPE.sub("", result.stdout)
     # Espaces autour du nom : sinon « index » serait trouvé dans « indexés ».
     for command in ("index", "search", "extract", "chunks"):
-        assert f" {command} " in result.stdout
+        assert f" {command} " in plain
 
 
 # --- extract ---------------------------------------------------------------------------
