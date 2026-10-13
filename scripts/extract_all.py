@@ -8,8 +8,6 @@ capturée et rapportée.
 """
 
 import argparse
-import os
-import stat
 import sys
 import time
 from collections import Counter
@@ -17,15 +15,11 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from second_brain.config import ExtractionConfig
-from second_brain.extraction.errors import ExtractionError, UnsupportedFormatError
+from second_brain.extraction.errors import ExtractionError
 from second_brain.extraction.models import ExtractedDocument
 from second_brain.extraction.registry import ExtractorRegistry, default_registry
+from second_brain.indexing.scanner import SkipReason, scan
 
-# Mêmes exclusions que scripts/corpus_stats.py (CLAUDE.md, section 8).
-# À centraliser quand l'indexation (étape 2) parcourra les dossiers.
-EXCLUDED_DIRS = {".git", "node_modules", "__pycache__", ".venv"}
-TEMP_PREFIXES = ("~$", ".~lock")
-MAX_FILE_SIZE = 50 * 1024 * 1024
 SLOWEST_COUNT = 5
 
 
@@ -35,8 +29,7 @@ class Report:
     scanned: list[str] = field(default_factory=list)
     failures: list[tuple[str, str, str]] = field(default_factory=list)  # (chemin, type, message)
     unexpected: list[tuple[str, str]] = field(default_factory=list)  # (chemin, type)
-    unsupported: Counter[str] = field(default_factory=Counter)
-    skipped: Counter[str] = field(default_factory=Counter)  # raison → nombre
+    skipped: Counter[SkipReason] = field(default_factory=Counter)  # rempli par le scanner
     encodings: Counter[str] = field(default_factory=Counter)
     timings: list[tuple[float, str]] = field(default_factory=list)
     pdf_density: list[tuple[float, str, int]] = field(default_factory=list)  # (moy, chemin, vides)
@@ -44,35 +37,6 @@ class Report:
     @property
     def attempted(self) -> int:
         return self.ok.total() + len(self.failures) + len(self.unexpected)
-
-
-def iter_files(root: Path, report: Report) -> list[Path]:
-    """Fichiers à traiter, triés, en appliquant les exclusions par défaut."""
-    files: list[Path] = []
-
-    def on_error(_: OSError) -> None:
-        report.skipped["dossier illisible"] += 1
-
-    for dirpath, dirnames, filenames in os.walk(root, onerror=on_error):
-        dirnames[:] = sorted(d for d in dirnames if d not in EXCLUDED_DIRS)
-        for name in sorted(filenames):
-            path = Path(dirpath, name)
-            try:
-                st = path.lstat()
-            except OSError:
-                report.skipped["métadonnées illisibles"] += 1
-                continue
-            if stat.S_ISLNK(st.st_mode):
-                report.skipped["lien symbolique"] += 1
-            elif not stat.S_ISREG(st.st_mode):
-                continue
-            elif name.startswith(TEMP_PREFIXES):
-                report.skipped["fichier temporaire"] += 1
-            elif st.st_size > MAX_FILE_SIZE:
-                report.skipped["plus de 50 Mo"] += 1
-            else:
-                files.append(path)
-    return files
 
 
 def visible_chars_per_page(doc: ExtractedDocument) -> tuple[float, int]:
@@ -83,16 +47,10 @@ def visible_chars_per_page(doc: ExtractedDocument) -> tuple[float, int]:
 
 
 def process(path: Path, rel: str, registry: ExtractorRegistry, report: Report) -> None:
-    extension = path.suffix.lower() or "(sans extension)"
-    try:
-        extractor = registry.for_path(path)
-    except UnsupportedFormatError:
-        report.unsupported[extension] += 1
-        return
-
+    extension = path.suffix.lower()
     start = time.perf_counter()
     try:
-        doc = extractor.extract(path)
+        doc = registry.for_path(path).extract(path)
     except ExtractionError as exc:  # échec prévu : notre message ne contient pas de contenu
         report.failures.append((rel, type(exc).__name__, str(exc)))
         return
@@ -154,8 +112,6 @@ def print_report(root: Path, report: Report, config: ExtractionConfig, near: int
         print(f"  {seconds * 1000:>8.0f} ms  {rel}")
 
     print("\nIgnorés :")
-    for ext, count in report.unsupported.most_common():
-        print(f"  format non supporté {ext} : {count}")
     for reason, count in report.skipped.most_common():
         print(f"  {reason} : {count}")
 
@@ -174,7 +130,9 @@ def main() -> int:
     config = ExtractionConfig()
     registry = default_registry(config)
     report = Report()
-    files = iter_files(root, report)
+    scanned = scan(root, registry.supports)
+    report.skipped = scanned.skipped
+    files = [f.path for f in scanned.files]
     for i, path in enumerate(files, start=1):
         process(path, str(path.relative_to(root)), registry, report)
         if i % 50 == 0 or i == len(files):

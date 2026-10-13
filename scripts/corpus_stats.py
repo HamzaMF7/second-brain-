@@ -12,10 +12,13 @@ from collections import Counter
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from second_brain.config import ScanConfig
+
 # Mêmes exclusions que l'indexation (CLAUDE.md, section 8).
-EXCLUDED_DIRS = {".git", "node_modules", "__pycache__", ".venv"}
-TEMP_PREFIXES = ("~$", ".~lock")
-MAX_FILE_SIZE = 50 * 1024 * 1024
+_SCAN = ScanConfig()
+EXCLUDED_DIRS = _SCAN.excluded_dirs
+TEMP_PREFIXES = _SCAN.temp_prefixes
+MAX_FILE_SIZE = _SCAN.max_file_size
 V0_EXTENSIONS = {".pdf", ".md", ".txt"}
 NO_EXTENSION = "(sans extension)"
 
