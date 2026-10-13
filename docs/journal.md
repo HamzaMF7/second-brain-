@@ -37,3 +37,39 @@
 **Chiffres**
 - Corpus inventé : PyMuPDF 5 à 15× plus rapide que pypdf ; pypdf colle des lignes
   (`Conclusionsouvient`). Pas encore d'évaluation de recherche (étape 4).
+
+## 2026-10-13 — Étape 2 : stockage et indexation
+
+**Fait**
+- ADR 0008 : SQL brut avec `sqlite3`, confiné à `storage/`.
+- Schéma initial (tables `STRICT`) et migrations numérotées `NNN_nom.sql`, une transaction
+  chacune, historique dans `schema_version`.
+- Scanner : exclusions de la section 8 centralisées dans `ScanConfig`, liens symboliques
+  non suivis, aucune lecture de contenu.
+- Détection des changements pure (nouveau, modifié, touché, inchangé, supprimé), testée sans
+  base ; hash SHA-256 seulement si nécessaire ; documents en erreur retentés.
+- Pipeline : un document = une transaction ; erreur → statut `error`, le pipeline continue ;
+  logs sans contenu, vérifiés par un test.
+- Commande `second-brain index` : progression, résumé, `--verbose`, base dans
+  `~/.local/share/second-brain/`.
+- Test d'intégration : le deuxième passage ne fait aucune extraction, aucun hash, aucune écriture.
+- 138 tests.
+
+**Appris**
+- L'entonnoir mtime/taille → hash → extraction : chaque étage évite le suivant.
+- Transactions : tout ou rien, et un seul fsync par document au lieu d'un par ligne.
+- `ON DELETE CASCADE` ne marche qu'avec `PRAGMA foreign_keys = ON`, à chaque connexion,
+  et ne couvre pas les tables virtuelles (FTS5, sqlite-vec).
+- `ON CONFLICT DO UPDATE` garde l'id ; `INSERT OR REPLACE` le change.
+- `dirnames[:] = ...` pour piloter `os.walk` ; `lstat` pour repérer un lien sans le suivre.
+- Un espion qui enveloppe un extracteur prouve qu'aucun travail n'est refait :
+  compter les « inchangés » ne suffit pas.
+
+**Difficile**
+- Deux pièges silencieux de `sqlite3` : PRAGMA ignoré dans une transaction, et DDL non
+  annulé dans le mode par défaut de Python. Découverts en testant avant de concevoir.
+- Typer 0.27 n'utilise plus Click : il a fallu un `Protocol` plutôt qu'un type privé.
+
+**Chiffres**
+- Fixtures : 2 documents ajoutés au 1er passage, 2 inchangés au 2e, 0 relecture de fichier.
+  Pas encore d'évaluation de recherche (étape 4).
