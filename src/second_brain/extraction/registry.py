@@ -19,11 +19,20 @@ class ExtractorRegistry:
 
     def for_path(self, path: Path) -> DocumentExtractor:
         """Renvoie l'extracteur adapté à `path`, ou lève UnsupportedFormatError."""
+        extractor = self._find(path)
+        if extractor is None:
+            raise UnsupportedFormatError(path.suffix.lower())
+        return extractor
+
+    def supports(self, path: Path) -> bool:
+        """Indique si un extracteur prend en charge ce fichier (d'après son extension)."""
+        return self._find(path) is not None
+
+    def _find(self, path: Path) -> DocumentExtractor | None:
         extension = path.suffix.lower()
-        for extractor in self._extractors:
-            if extension and extractor.supports(extension):
-                return extractor
-        raise UnsupportedFormatError(extension)
+        if not extension:
+            return None
+        return next((e for e in self._extractors if e.supports(extension)), None)
 
 
 def default_registry(config: ExtractionConfig | None = None) -> ExtractorRegistry:

@@ -16,8 +16,9 @@ Brouillon d'un nouvel ADR dans Claude Code : `/adr <sujet>`.
 | [0005](0005-evaluation-des-la-v0.md) | Évaluation chiffrée dès la V0, arbitre des décisions | Accepté | 2026-10-08 |
 | [0006](0006-local-first-et-confidentialite.md) | Local par défaut et règles de confidentialité | Accepté | 2026-10-08 |
 | [0007](0007-bibliotheque-pdf.md) | Bibliothèque d'extraction PDF (PyMuPDF) | Accepté, à réévaluer avant distribution | 2026-10-12 |
+| [0008](0008-sql-brut-sqlite3.md) | Accès aux données en SQL brut avec sqlite3 | Accepté | 2026-10-13 |
 
-Décisions à venir : SQL brut ou ORM (étape 2), stratégie de chunking (étape 5), modèle d'embeddings (étape 6), paramètres de fusion (étape 7).
+Décisions à venir : stratégie de chunking (étape 5), modèle d'embeddings (étape 6), paramètres de fusion (étape 7).
 
 ## Modèle
 

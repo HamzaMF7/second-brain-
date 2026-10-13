@@ -86,3 +86,11 @@ def test_registre_par_defaut_couvre_les_formats_v0() -> None:
     assert isinstance(registry.for_path(Path("a.md")), MarkdownExtractor)
     assert isinstance(registry.for_path(Path("a.markdown")), MarkdownExtractor)
     assert isinstance(registry.for_path(Path("a.txt")), TextExtractor)
+
+
+def test_supports_indique_si_un_extracteur_existe() -> None:
+    registry = ExtractorRegistry([FakeExtractor({".md"})])
+
+    assert registry.supports(Path("notes/A.MD"))
+    assert not registry.supports(Path("tableur.xlsx"))
+    assert not registry.supports(Path("README"))

@@ -100,3 +100,91 @@ def test_extract_fichier_absent(tmp_path: Path) -> None:
     result = runner.invoke(app, ["extract", str(tmp_path / "absent.md")])
 
     assert result.exit_code == 2
+
+
+# --- index -----------------------------------------------------------------------------
+
+
+def make_folder(tmp_path: Path) -> Path:
+    folder = tmp_path / "notes"
+    (folder / "sous").mkdir(parents=True)
+    (folder / "a.md").write_text("# Titre\n\ntexte inventé", encoding="utf-8")
+    (folder / "sous" / "b.txt").write_text("idées", encoding="utf-8")
+    (folder / "corrompu.pdf").write_bytes(b"pas un PDF")
+    (folder / "tableur.xlsx").write_bytes(b"")
+    return folder
+
+
+def index_args(folder: Path, db: Path) -> list[str]:
+    return ["index", str(folder), "--db", str(db)]
+
+
+def test_index_affiche_le_resume(tmp_path: Path) -> None:
+    folder = make_folder(tmp_path)
+
+    result = runner.invoke(app, index_args(folder, tmp_path / "index.db"))
+
+    assert result.exit_code == 0
+    out = ANSI_ESCAPE.sub("", result.stdout)
+    assert "Ajoutés     : 2" in out
+    assert "Erreurs     : 1" in out
+    assert "Supprimés   : 0" in out
+    assert "Ignorés     : 1" in out
+    assert "Durée" in out
+
+
+def test_index_deuxieme_passage_inchange(tmp_path: Path) -> None:
+    folder = make_folder(tmp_path)
+    db = tmp_path / "index.db"
+    runner.invoke(app, index_args(folder, db))
+    (folder / "corrompu.pdf").unlink()
+
+    result = runner.invoke(app, index_args(folder, db))
+
+    out = ANSI_ESCAPE.sub("", result.stdout)
+    assert "Ajoutés     : 0" in out
+    assert "Inchangés   : 2" in out
+    assert "Supprimés   : 1" in out
+
+
+def test_index_cree_le_dossier_de_la_base(tmp_path: Path) -> None:
+    db = tmp_path / "profond" / "dossier" / "index.db"
+
+    result = runner.invoke(app, index_args(make_folder(tmp_path), db))
+
+    assert result.exit_code == 0
+    assert db.exists()
+
+
+def test_index_base_choisie_par_variable_d_environnement(tmp_path: Path) -> None:
+    db = tmp_path / "env.db"
+
+    result = runner.invoke(
+        app, ["index", str(make_folder(tmp_path))], env={"SECOND_BRAIN_DB": str(db)}
+    )
+
+    assert result.exit_code == 0
+    assert db.exists()
+
+
+def test_index_dossier_absent(tmp_path: Path) -> None:
+    result = runner.invoke(app, index_args(tmp_path / "absent", tmp_path / "index.db"))
+
+    assert result.exit_code == 2
+
+
+def test_index_verbose_journalise_sans_contenu(tmp_path: Path) -> None:
+    folder = make_folder(tmp_path)
+
+    result = runner.invoke(app, [*index_args(folder, tmp_path / "index.db"), "--verbose"])
+
+    assert "a.md" in result.stderr
+    assert "texte inventé" not in result.output
+
+
+def test_index_verbose_donne_la_cause_des_erreurs(tmp_path: Path) -> None:
+    folder = make_folder(tmp_path)
+
+    result = runner.invoke(app, [*index_args(folder, tmp_path / "index.db"), "--verbose"])
+
+    assert "erreur=CorruptedDocumentError : PDF illisible : corrompu.pdf" in result.stderr
